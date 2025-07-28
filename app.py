@@ -1,42 +1,49 @@
 from flask import Flask, request, jsonify
-from dotenv import load_dotenv
 from flask_cors import CORS
+from dotenv import load_dotenv
 import openai
 import os
 import json
 
-app = Flask(__name__)
+# Load environment variables
 load_dotenv()
-CORS(app, resources={r"/*": {"origins": "*"}})
 
+app = Flask(__name__)
+CORS(app)  # Allow all origins by default
+
+# Load OpenAI key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Load books from file
+# Load books data
 with open("books.json", encoding="utf-8") as f:
     books = json.load(f)
 
-@app.route("/chat", methods=["POST"])
+@app.after_request
+def add_cors_headers(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+    response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+    return response
+
+@app.route("/chat", methods=["POST", "OPTIONS"])
 def chat():
     if request.method == "OPTIONS":
-        # Respond to CORS preflight
-        response = jsonify({'status': 'ok'})
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-        response.headers.add("Access-Control-Allow-Methods", "POST")
-        return response
+        return jsonify({"status": "ok"}), 200
+
     data = request.get_json()
     user_message = data.get("message", "").strip()
 
-    # Simple intent detection
     if is_book_question(user_message):
         return jsonify({"reply": search_books(user_message)})
 
-    # Fallback to OpenAI
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ești un asistent AI al unei edituri independente. Vorbești în limba română, răspunzi politicos și profesional. Oferi informații despre cărți, autori, tematici filosofice, sociologice, marxism, critică literară și evenimente culturale. Dacă nu știi un răspuns, încurajezi utilizatorul să trimită un mesaj prin formularul de contact. Cand un utilizator iti pune o intrebare despre tema sau continutul unei carti dai raspunsuri care apartin de filosofia critica(aceeasi tema). Raspunzi cu acelasi ton si stil ca al lui Perry Anderson. Razpunzi intr-un mod concis si eficient"},
+                {
+                    "role": "system",
+                    "content": "Ești un asistent AI al unei edituri independente. Vorbești în limba română..."
+                },
                 {"role": "user", "content": user_message}
             ]
         )
@@ -64,7 +71,5 @@ def search_books(msg):
     return "Recomandări:\n" + "\n".join([f"• {b['titlu']} – {b['pret']} lei" for _, b in top])
 
 if __name__ == "__main__":
-    import os
-
-    port = int(os.environ.get("PORT", 10000))  # <- required by Render
+    port = int(os.environ.get("PORT", 10000))  # Render requires binding to this port
     app.run(debug=False, host="0.0.0.0", port=port)
