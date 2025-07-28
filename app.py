@@ -7,7 +7,7 @@ import json
 
 app = Flask(__name__)
 load_dotenv()
-CORS(app, origins="*")
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -17,6 +17,13 @@ with open("books.json", encoding="utf-8") as f:
 
 @app.route("/chat", methods=["POST"])
 def chat():
+    if request.method == "OPTIONS":
+        # Respond to CORS preflight
+        response = jsonify({'status': 'ok'})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        response.headers.add("Access-Control-Allow-Methods", "POST")
+        return response
     data = request.get_json()
     user_message = data.get("message", "").strip()
 
