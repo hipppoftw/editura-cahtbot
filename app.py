@@ -68,10 +68,9 @@ def search_books(msg):
 
             title_score = fuzz.partial_ratio(query, title)
             author_score = fuzz.partial_ratio(query, author)
-            score = max(title_score, author_score)
-
-            if score >= 60:  # Lowered threshold to allow more than 1 good result
-                matches.append((score, book))
+            if author_score >= 80 or title_score >= 65:
+                total_score = max(author_score, title_score)
+                matches.append((total_score, book))
 
         # Sort by best match
         matches.sort(key=lambda x: -x[0])
