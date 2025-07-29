@@ -58,32 +58,33 @@ def is_book_question(msg):
     return any(kw in msg.lower() for kw in keywords)
 
 def search_books(msg):
-    words = msg.lower().split()
-    matches = []
 
-    for book in books:
-        title = book.get("titlu", "").lower()
-        author = book.get("autor", "").lower()
+        query = msg.lower()
+        matches = []
 
-        title_score = sum(1 for word in words if word in title)
-        author_score = sum(1 for word in words if word in author)
-        total_score = title_score + author_score
+        for book in books:
+            title = book.get("titlu", "").lower()
+            author = book.get("autor", "").lower()
 
-        if total_score > 0:
-            matches.append((total_score, book))
+            title_score = fuzz.partial_ratio(query, title)
+            author_score = fuzz.partial_ratio(query, author)
 
+            # Only add strong matches
+            if author_score >= 80 or title_score >= 65:
+                total_score = max(author_score, title_score)
+                matches.append((total_score, book))
 
-    matches.sort(key=lambda x: -x[0])
-    top = matches[:5]
+        # Sort by best match
+        matches.sort(key=lambda x: -x[0])
+        top = matches[:5]
 
-    if not top:
-        return "Nu am găsit nicio carte relevantă."
+        if not top:
+            return "Nu am găsit nicio carte relevantă."
 
-
-    return "Recomandări:\n" + "\n".join([
-        f"• {b['titlu']} – {b['autor']} – {b['pret']} lei"
-        for _, b in top
-    ])
+        return "Recomandări:\n" + "\n".join([
+            f"• {b['titlu']} – {b['autor']} – {b['pret']} lei"
+            for _, b in top
+        ])
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  # Render requires binding to this port
