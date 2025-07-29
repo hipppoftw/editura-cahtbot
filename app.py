@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from rapidfuzz import fuzz
 import openai
 import os
 import json
@@ -53,22 +54,36 @@ def chat():
         return jsonify({"reply": "Eroare de server. Încearcă mai târziu."}), 500
 
 def is_book_question(msg):
-    keywords = ["carte", "autor", "recomand", "titlu", "scris de", "despre"]
+    keywords = ["carte", "autor", "recomand", "titlu", "scris de", "despre", "marxism", "filosofie", "sociologie"]
     return any(kw in msg.lower() for kw in keywords)
 
 def search_books(msg):
     words = msg.lower().split()
     matches = []
+
     for book in books:
-        title = book["titlu"].lower()
-        score = sum(1 for word in words if word in title)
-        if score > 0:
-            matches.append((score, book))
+        title = book.get("titlu", "").lower()
+        author = book.get("autor", "").lower()
+
+        title_score = sum(1 for word in words if word in title)
+        author_score = sum(1 for word in words if word in author)
+        total_score = title_score + author_score
+
+        if total_score > 0:
+            matches.append((total_score, book))
+
+
     matches.sort(key=lambda x: -x[0])
     top = matches[:5]
+
     if not top:
         return "Nu am găsit nicio carte relevantă."
-    return "Recomandări:\n" + "\n".join([f"• {b['titlu']} – {b['pret']} lei" for _, b in top])
+
+
+    return "Recomandări:\n" + "\n".join([
+        f"• {b['titlu']} – {b['autor']} – {b['pret']} lei"
+        for _, b in top
+    ])
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  # Render requires binding to this port
